@@ -19,8 +19,8 @@ public final class FurnitureCodec {
         Furniture create(DataInputStream in) throws IOException;
     }
 
-    private static final Map<Class<?>, String> NAMES     = new HashMap<>();
-    private static final Map<String, Factory>  FACTORIES = new HashMap<>();
+    private static final Map<Class<?>, String> NAMES = new HashMap<>();
+    private static final Map<String, Factory> FACTORIES = new HashMap<>();
 
     static {
         register("workbench", Workbench.class, in -> {
@@ -66,6 +66,10 @@ public final class FurnitureCodec {
             throw new IllegalStateException("未注册家具类型: " + cls.getName());
         }
         return id;
+    }
+
+    public static boolean has(String id) {
+        return FACTORIES.containsKey(id);
     }
 
     public static Furniture create(String id, DataInputStream in) throws IOException {
