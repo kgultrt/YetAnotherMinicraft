@@ -8,6 +8,7 @@ import com.mojang.ld22.gfx.Color;
 import com.mojang.ld22.gfx.Font;
 import com.mojang.ld22.gfx.Screen;
 import com.mojang.ld22.i18n.Messages;
+import com.mojang.ld22.save.SaveManager;
 import com.mojang.ld22.sound.Sound;
 import com.mojang.ld22.ui.MenuList;
 import com.mojang.ld22.ui.MenuBackground;
@@ -18,8 +19,10 @@ public class TitleMenu extends Menu {
 
     private final MenuBackground bg = MenuBackground.get();
 
+    // === 新增 "option.continue" ===
     private static final String[] OPTION_KEYS = {
-            "option.start", "option.howto", "option.about", "option.language", "option.quit"
+            "option.start", "option.continue", "option.howto",
+            "option.about", "option.language", "option.quit"
     };
 
     /** 选项列表。行高 8px。 */
@@ -40,15 +43,22 @@ public class TitleMenu extends Menu {
                     game.startGame();
                     break;
                 case 1:
-                    game.setMenu(new InstructionsMenu(this), +1);
+                    Sound.test.play();
+                    if (!game.loadGame()) {
+                        // 没存档，退化成新游戏
+                        game.startGame();
+                    }
                     break;
                 case 2:
-                    game.setMenu(new AboutMenu(this), +1);
+                    game.setMenu(new InstructionsMenu(this), +1);
                     break;
                 case 3:
-                    game.setMenu(new LanguageMenu(this), +1);
+                    game.setMenu(new AboutMenu(this), +1);
                     break;
                 case 4:
+                    game.setMenu(new LanguageMenu(this), +1);
+                    break;
+                case 5:
                     Gdx.app.exit();
                     break;
             }
@@ -58,7 +68,6 @@ public class TitleMenu extends Menu {
     public void render(Screen screen) {
         bg.render(screen);
 
-        // 主标题上下浮动 1px，周期 120 tick（2 秒），缓入缓出。
         int titleBob = titleBob();
 
         int h = 2;
@@ -79,12 +88,6 @@ public class TitleMenu extends Menu {
             }
         }
 
-        /*
-         * 选项框宽度取所有选项中最大的实际字体宽度。
-         *
-         * 现在字体是变宽字体，所以不能再使用：
-         *     msg.length() * 8
-         */
         int boxW = 0;
 
         for (int i = 0; i < list.size(); i++) {
@@ -94,8 +97,8 @@ public class TitleMenu extends Menu {
 
         int boxX = (screen.w - boxW) / 2;
 
-        // 高亮跟随箭头当前位置（动画中会连续变化）。
         int highlightIdx = list.highlightIndex();
+        boolean saveExists = SaveManager.exists();
 
         for (int i = 0; i < list.size(); i++) {
             String msg = Messages.get(this, list.get(i));
@@ -106,19 +109,17 @@ public class TitleMenu extends Menu {
                     ? Color.get(0, 555, 555, 555)
                     : Color.get(0, 222, 222, 222);
 
-            // 使用实际字体宽度进行居中。
+            // "继续游戏" 无存档时显示为灰色
+            if (i == 1 && !saveExists) {
+                col = Color.get(0, 111, 111, 111);
+            }
+
             int textW = Font.measure(msg);
             int x = boxX + (boxW - textW) / 2;
 
             Font.draw(msg, screen, x, y, col);
         }
 
-        /*
-         * 箭头与菜单框保持固定像素间距。
-         *
-         * 不再使用 8 * 2 这种固定字符宽度，
-         * 而是使用箭头自身的实际 advance。
-         */
         {
             int arrowY = 8 * 8 + Math.round(list.arrowY());
             int col = Color.get(0, 555, 555, 555);
@@ -150,11 +151,6 @@ public class TitleMenu extends Menu {
         );
     }
 
-    /**
-     * 主标题浮动。周期 120 tick，幅度 ±1。
-     *
-     * <p>用 easeInOutQuad 而非 sin —— sin 过零点附近变化快，1px 幅度下 看起来像"跳"；easeInOutQuad 两端慢中间快，是"呼吸"的感觉。
-     */
     private int titleBob() {
         int period = 120;
         int half = period / 2;

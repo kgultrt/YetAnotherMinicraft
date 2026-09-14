@@ -3,91 +3,111 @@ package com.mojang.ld22.item;
 import java.util.Locale;
 import java.util.Random;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 import com.mojang.ld22.entity.Entity;
 import com.mojang.ld22.entity.ItemEntity;
 import com.mojang.ld22.gfx.Color;
 import com.mojang.ld22.gfx.Font;
 import com.mojang.ld22.gfx.Screen;
 import com.mojang.ld22.i18n.Messages;
+import com.mojang.ld22.save.ToolTypeCodec;
 
 public class ToolItem extends Item {
-	private Random random = new Random();
+    private Random random = new Random();
 
-	public static final int MAX_LEVEL = 5;
+    public static final int MAX_LEVEL = 5;
 
-	/** 等级 key，和 properties 里的 item.tool.<level>.<type>.name 对应。 */
-	public static final String[] LEVEL_KEYS = {
-		"wood", "rock", "iron", "gold", "gem"
-	};
+    /** 等级 key，和 properties 里的 item.tool.<level>.<type>.name 对应。 */
+    public static final String[] LEVEL_KEYS = {
+            "wood", "rock", "iron", "gold", "gem"
+    };
 
-	/** 英文 fallback，properties 找不到时使用。 */
-	public static final String[] LEVEL_NAMES = {
-		"Wood", "Rock", "Iron", "Gold", "Gem"
-	};
+    /** 英文 fallback，properties 找不到时使用。 */
+    public static final String[] LEVEL_NAMES = {
+            "Wood", "Rock", "Iron", "Gold", "Gem"
+    };
 
-	public static final int[] LEVEL_COLORS = {
-		Color.get(-1, 100, 321, 431),
-		Color.get(-1, 100, 321, 111),
-		Color.get(-1, 100, 321, 555),
-		Color.get(-1, 100, 321, 550),
-		Color.get(-1, 100, 321, 055),
-	};
+    public static final int[] LEVEL_COLORS = {
+            Color.get(-1, 100, 321, 431),
+            Color.get(-1, 100, 321, 111),
+            Color.get(-1, 100, 321, 555),
+            Color.get(-1, 100, 321, 550),
+            Color.get(-1, 100, 321, 055),
+    };
 
-	public ToolType type;
-	public int level = 0;
+    public ToolType type;
+    public int level = 0;
 
-	public ToolItem(ToolType type, int level) {
-		this.type = type;
-		this.level = level;
-	}
+    public ToolItem(ToolType type, int level) {
+        this.type = type;
+        this.level = level;
+    }
 
-	public int getColor() {
-		return LEVEL_COLORS[level];
-	}
+    public int getColor() {
+        return LEVEL_COLORS[level];
+    }
 
-	public int getSprite() {
-		return type.sprite + 5 * 32;
-	}
+    public int getSprite() {
+        return type.sprite + 5 * 32;
+    }
 
-	public void renderIcon(Screen screen, int x, int y) {
-		screen.render(x, y, getSprite(), getColor(), 0);
-	}
+    public void renderIcon(Screen screen, int x, int y) {
+        screen.render(x, y, getSprite(), getColor(), 0);
+    }
 
-	public void renderInventory(Screen screen, int x, int y) {
-		screen.render(x, y, getSprite(), getColor(), 0);
-		Font.draw(getName(), screen, x + 8, y, Color.get(-1, 555, 555, 555));
-	}
+    public void renderInventory(Screen screen, int x, int y) {
+        screen.render(x, y, getSprite(), getColor(), 0);
+        Font.draw(getName(), screen, x + 8, y, Color.get(-1, 555, 555, 555));
+    }
 
-	public String getName() {
-		String levelKey = LEVEL_KEYS[level];
-		String typeKey = type.name.toLowerCase(Locale.ENGLISH);
-		return Messages.get("item.tool." + levelKey + "." + typeKey + ".name");
-	}
+    public String getName() {
+        String levelKey = LEVEL_KEYS[level];
+        String typeKey = type.name.toLowerCase(Locale.ENGLISH);
+        return Messages.get("item.tool." + levelKey + "." + typeKey + ".name");
+    }
 
-	public void onTake(ItemEntity itemEntity) {
-	}
+    public void onTake(ItemEntity itemEntity) {}
 
-	public boolean canAttack() {
-		return true;
-	}
+    public boolean canAttack() {
+        return true;
+    }
 
-	public int getAttackDamageBonus(Entity e) {
-		if (type == ToolType.axe) {
-			return (level + 1) * 2 + random.nextInt(4);
-		}
-		if (type == ToolType.sword) {
-			return (level + 1) * 3 + random.nextInt(2 + level * level * 2);
-		}
-		return 1;
-	}
+    public int getAttackDamageBonus(Entity e) {
+        if (type == ToolType.axe) {
+            return (level + 1) * 2 + random.nextInt(4);
+        }
+        if (type == ToolType.sword) {
+            return (level + 1) * 3 + random.nextInt(2 + level * level * 2);
+        }
+        return 1;
+    }
 
-	public boolean matches(Item item) {
-		if (item instanceof ToolItem) {
-			ToolItem other = (ToolItem) item;
-			if (other.type != type) return false;
-			if (other.level != level) return false;
-			return true;
-		}
-		return false;
-	}
+    public boolean matches(Item item) {
+        if (item instanceof ToolItem) {
+            ToolItem other = (ToolItem) item;
+            if (other.type != type) return false;
+            if (other.level != level) return false;
+            return true;
+        }
+        return false;
+    }
+
+    // ============================================================ 存档
+
+    @Override
+    public void write(DataOutputStream out) throws IOException {
+        super.write(out);              // Item 基类目前没字段，留着为了将来扩展
+        out.writeUTF(type.name);       // "Shvl" / "Hoe" / "Swrd" / "Pick" / "Axe"
+        out.writeInt(level);
+    }
+
+    @Override
+    public void read(DataInputStream in) throws IOException {
+        super.read(in);
+        type  = ToolTypeCodec.byName(in.readUTF());
+        level = in.readInt();
+    }
 }

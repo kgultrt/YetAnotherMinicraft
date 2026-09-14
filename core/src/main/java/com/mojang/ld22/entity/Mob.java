@@ -1,5 +1,9 @@
 package com.mojang.ld22.entity;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 import com.mojang.ld22.entity.particle.TextParticle;
 import com.mojang.ld22.gfx.Color;
 import com.mojang.ld22.level.Level;
@@ -136,5 +140,35 @@ public class Mob extends Entity {
 		}
 
 		return false;
+	}
+
+	// ============================================================ 存档
+
+	@Override
+	public void write(DataOutputStream out) throws IOException {
+		super.write(out);
+		out.writeInt(walkDist);
+		out.writeInt(dir);
+		out.writeInt(hurtTime);
+		out.writeInt(xKnockback);
+		out.writeInt(yKnockback);
+		out.writeInt(maxHealth);
+		out.writeInt(health);
+		out.writeInt(swimTimer);
+		out.writeInt(tickTime);
+	}
+
+	@Override
+	public void read(DataInputStream in) throws IOException {
+		super.read(in);
+		walkDist   = in.readInt();
+		dir        = in.readInt();
+		hurtTime   = in.readInt();
+		xKnockback = in.readInt();
+		yKnockback = in.readInt();
+		maxHealth  = in.readInt();
+		health     = in.readInt();
+		swimTimer  = in.readInt();
+		tickTime   = in.readInt();
 	}
 }

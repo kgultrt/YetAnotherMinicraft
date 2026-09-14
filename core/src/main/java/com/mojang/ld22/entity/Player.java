@@ -1,5 +1,8 @@
 package com.mojang.ld22.entity;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.List;
 
 import com.mojang.ld22.Game;
@@ -391,5 +394,51 @@ public class Player extends Mob {
 	public void gameWon() {
 		level.player.invulnerableTime = 60 * 5;
 		game.won();
+	}
+
+	// ============================================================ 存档
+
+	@Override
+	public void write(DataOutputStream out) throws IOException {
+		super.write(out);
+		out.writeInt(attackTime);
+		out.writeInt(attackDir);
+		out.writeInt(stamina);
+		out.writeInt(staminaRecharge);
+		out.writeInt(staminaRechargeDelay);
+		out.writeInt(score);
+		out.writeInt(maxStamina);
+		out.writeInt(onStairDelay);
+		out.writeInt(invulnerableTime);
+
+		inventory.write(out);
+
+		// 当前选中物品：用 inventory 里的索引表示，-1 = 无
+		int idx = -1;
+		if (activeItem != null) {
+			idx = inventory.items.indexOf(activeItem);
+		}
+		out.writeInt(idx);
+		// attackItem 只在攻击那几 tick 非空，不存
+	}
+
+	@Override
+	public void read(DataInputStream in) throws IOException {
+		super.read(in);
+		attackTime           = in.readInt();
+		attackDir            = in.readInt();
+		stamina              = in.readInt();
+		staminaRecharge      = in.readInt();
+		staminaRechargeDelay = in.readInt();
+		score                = in.readInt();
+		maxStamina           = in.readInt();
+		onStairDelay         = in.readInt();
+		invulnerableTime     = in.readInt();
+
+		inventory.read(in);
+
+		int idx = in.readInt();
+		activeItem = (idx >= 0 && idx < inventory.items.size()) ? inventory.items.get(idx) : null;
+		attackItem = null;
 	}
 }

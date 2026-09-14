@@ -1,11 +1,15 @@
 package com.mojang.ld22.entity;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.mojang.ld22.item.Item;
 import com.mojang.ld22.item.ResourceItem;
 import com.mojang.ld22.item.resource.Resource;
+import com.mojang.ld22.save.ItemCodec;
 
 public class Inventory {
 	public List<Item> items = new ArrayList<Item>();
@@ -65,5 +69,25 @@ public class Inventory {
 			return count;
 		}
 		return 0;
+	}
+
+	// ============================================================ 存档
+
+	public void write(DataOutputStream out) throws IOException {
+		out.writeInt(items.size());
+		for (Item it : items) {
+			out.writeUTF(ItemCodec.nameOf(it.getClass()));
+			it.write(out);
+		}
+	}
+
+	public void read(DataInputStream in) throws IOException {
+		items.clear();
+		int count = in.readInt();
+		for (int i = 0; i < count; i++) {
+			String id = in.readUTF();
+			Item it = ItemCodec.create(id, in);
+			if (it != null) items.add(it);
+		}
 	}
 }

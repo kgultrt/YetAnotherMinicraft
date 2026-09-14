@@ -1,5 +1,9 @@
 package com.mojang.ld22.item;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 import com.mojang.ld22.entity.Furniture;
 import com.mojang.ld22.entity.ItemEntity;
 import com.mojang.ld22.entity.Player;
@@ -8,6 +12,7 @@ import com.mojang.ld22.gfx.Font;
 import com.mojang.ld22.gfx.Screen;
 import com.mojang.ld22.level.Level;
 import com.mojang.ld22.level.tile.Tile;
+import com.mojang.ld22.save.FurnitureCodec;
 
 public class FurnitureItem extends Item {
 	public Furniture furniture;
@@ -58,5 +63,37 @@ public class FurnitureItem extends Item {
 
 	public String getName() {
 		return furniture.getName();
+	}
+
+	// ============================================================ 存档
+
+	@Override
+	public void write(DataOutputStream out) throws IOException {
+		super.write(out);
+
+		// furniture 理论上不会为 null，但加个 flag 更稳（防止存档损坏导致 NPE）
+		if (furniture != null) {
+			out.writeBoolean(true);
+			out.writeUTF(FurnitureCodec.nameOf(furniture.getClass()));
+			furniture.write(out);
+		} else {
+			out.writeBoolean(false);
+		}
+
+		out.writeBoolean(placed);
+	}
+
+	@Override
+	public void read(DataInputStream in) throws IOException {
+		super.read(in);
+
+		if (in.readBoolean()) {
+			String id = in.readUTF();
+			furniture = FurnitureCodec.create(id, in);
+		} else {
+			furniture = null;
+		}
+
+		placed = in.readBoolean();
 	}
 }

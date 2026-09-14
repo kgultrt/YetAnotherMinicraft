@@ -1,5 +1,8 @@
 package com.mojang.ld22.entity;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
@@ -130,5 +133,31 @@ public class Entity {
 
 	public int getLightRadius() {
 		return 0;
+	}
+
+	// ============================================================ 存档
+
+	/**
+	 * 写入基类公共字段。子类必须 override 并调用 super.write(out)。
+	 *
+	 * <p>level 引用不写 —— 反序列化时由 Level.add() 重建。
+	 */
+	public void write(DataOutputStream out) throws IOException {
+		out.writeInt(x);
+		out.writeInt(y);
+		out.writeInt(xr);
+		out.writeInt(yr);
+		out.writeBoolean(removed);
+	}
+
+	/**
+	 * 读取基类公共字段。子类必须 override 并调用 super.read(in)。
+	 */
+	public void read(DataInputStream in) throws IOException {
+		x = in.readInt();
+		y = in.readInt();
+		xr = in.readInt();
+		yr = in.readInt();
+		removed = in.readBoolean();
 	}
 }

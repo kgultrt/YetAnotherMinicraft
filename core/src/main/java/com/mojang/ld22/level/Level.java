@@ -1,20 +1,27 @@
 package com.mojang.ld22.level;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
+import com.mojang.ld22.Game;
 import com.mojang.ld22.entity.AirWizard;
 import com.mojang.ld22.entity.Entity;
 import com.mojang.ld22.entity.Mob;
 import com.mojang.ld22.entity.Player;
 import com.mojang.ld22.entity.Slime;
 import com.mojang.ld22.entity.Zombie;
+import com.mojang.ld22.entity.particle.SmashParticle;
+import com.mojang.ld22.entity.particle.TextParticle;
 import com.mojang.ld22.gfx.Screen;
 import com.mojang.ld22.level.levelgen.LevelGen;
 import com.mojang.ld22.level.tile.Tile;
+import com.mojang.ld22.save.EntityCodec;
 
 public class Level {
 	private Random random = new Random();
@@ -110,6 +117,27 @@ public class Level {
 		}
 	}
 
+	/**
+	 * 空关卡，只初始化数据结构，不生成世界。用于读档。
+	 */
+	@SuppressWarnings("unchecked")
+	public Level(int w, int h, int depth) {
+		this.w = w;
+		this.h = h;
+		this.depth = depth;
+		if (depth < 0) dirtColor = 222;
+		if (depth == 1) dirtColor = 444;
+
+		this.tiles = new byte[w * h];
+		this.data  = new byte[w * h];
+		this.entitiesInTiles = new ArrayList[w * h];
+		for (int i = 0; i < w * h; i++) {
+			entitiesInTiles[i] = new ArrayList<Entity>();
+		}
+	}
+
+	public int getDepth() { return depth; }
+
 	public void renderBackground(Screen screen, int xScroll, int yScroll) {
 		int xo = xScroll >> 4;
 		int yo = yScroll >> 4;
@@ -172,10 +200,6 @@ public class Level {
 		}
 		screen.setOffset(0, 0);
 	}
-
-	// private void renderLight(Screen screen, int x, int y, int r) {
-	// screen.renderLight(x, y, r);
-	// }
 
 	private void sortAndRender(Screen screen, List<Entity> list) {
 		Collections.sort(list, spriteSorter);
@@ -305,5 +329,55 @@ public class Level {
 			}
 		}
 		return result;
+	}
+
+	// ============================================================ 存档
+
+	public void writeTiles(DataOutputStream out) throws IOException {
+		out.writeInt(w * h);
+		out.write(tiles);
+		out.write(data);
+	}
+
+	public void readTiles(DataInputStream in) throws IOException {
+		int count = in.readInt();
+		if (count != w * h) throw new IOException("tile count mismatch: " + count + " vs " + (w * h));
+		in.readFully(tiles);
+		in.readFully(data);
+	}
+
+	public void writeEntities(DataOutputStream out) throws IOException {
+		int count = 0;
+		for (Entity e : entities) {
+			if (isPersistent(e)) count++;
+		}
+		out.writeInt(count);
+		for (Entity e : entities) {
+			if (!isPersistent(e)) continue;
+			out.writeUTF(EntityCodec.nameOf(e.getClass()));
+			e.write(out);
+		}
+	}
+
+	public void readEntities(DataInputStream in, Game game) throws IOException {
+		int count = in.readInt();
+		for (int i = 0; i < count; i++) {
+			String id = in.readUTF();
+			Entity e = EntityCodec.create(id, in, this, game);
+			if (e != null) add(e);
+		}
+	}
+
+	/**
+	 * 判断一个实体是否应该写进存档。
+	 *
+	 * <p>规则：玩家由 SaveManager 单独处理；粒子/投射物是临时的，直接丢弃。
+	 */
+	private static boolean isPersistent(Entity e) {
+		if (e instanceof Player) return false;
+		if (e instanceof TextParticle) return false;
+		if (e instanceof SmashParticle) return false;
+		// 若你的项目里还有 Spark / Arrow 之类，也在这里 return false
+		return true;
 	}
 }

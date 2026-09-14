@@ -21,6 +21,7 @@ import com.mojang.ld22.gfx.SpriteSheet;
 import com.mojang.ld22.i18n.Messages;
 import com.mojang.ld22.level.Level;
 import com.mojang.ld22.level.tile.Tile;
+import com.mojang.ld22.save.SaveManager;
 import com.mojang.ld22.screen.DeadMenu;
 import com.mojang.ld22.screen.LevelTransitionMenu;
 import com.mojang.ld22.screen.Menu;
@@ -56,12 +57,10 @@ public class Game extends ApplicationAdapter {
 
     /**
      * 背景暗化过渡时长（tick）。12 tick ≈ 0.2 秒。
-     *
-     * <p>菜单滑动动画是 24 tick，暗化是它的一半 —— 暗化先到位， 菜单滑到位时游戏画面已经暗好了，衔接更顺。
      */
     private static final int DARKEN_ANIM_TICKS = 12;
 
-    /** 有序抖动矩阵。开场渐亮用它把"该不该画黑块"分散到不同 tick， 看起来像像素在逐块点亮，而不是整体变亮。 */
+    /** 有序抖动矩阵。 */
     private static final int[][] BAYER_4X4 = {
             {0, 8, 2, 10},
             {12, 4, 14, 6},
@@ -69,9 +68,6 @@ public class Game extends ApplicationAdapter {
             {15, 7, 13, 5},
     };
 
-    /**
-     * HUD 一行的 X 坐标。全部 y=0，水平平铺。 血条 10 格（80px）从 0 起，间隔 16px 后是体力条， 再间隔 16px 后是道具槽。240 宽下也放得下（208px）。
-     */
     private static final int HUD_HP_X = 0;
 
     private static final int HUD_STAMINA_X = 96;
@@ -80,7 +76,9 @@ public class Game extends ApplicationAdapter {
 
     private Screen screen;
     private Screen lightScreen;
-    private InputHandler input;
+
+    /** 改成 public，方便 SaveManager / Player.read 访问。 */
+    public InputHandler input;
 
     /** 16 位调色板 + RGBA8888 查表。 */
     private final Palette palette = new Palette();
@@ -88,7 +86,7 @@ public class Game extends ApplicationAdapter {
     private int tickCount = 0;
     public int gameTime = 0;
 
-    private Level level;
+    public Level level;
     private Level[] levels = new Level[5];
     private int currentLevel = 3;
     public Player player;
@@ -128,9 +126,6 @@ public class Game extends ApplicationAdapter {
 
     /**
      * 背景暗化过渡的四个状态值。
-     *
-     * <p>用浮点而不是整数，因为要在两个暗化档位之间平滑过渡。 {@link #currentDarken} 是当前实际值，{@link #renderFrame} 里 round
-     * 成整数档位用。
      */
     private float fromDarken = 0f;
 
@@ -144,12 +139,6 @@ public class Game extends ApplicationAdapter {
         setMenu(newMenu, 1);
     }
 
-    /**
-     * 带方向的菜单切换。
-     *
-     * @param newMenu 目标菜单；null 表示回到游戏
-     * @param direction +1 前进（新菜单从右侧来），-1 返回（新菜单从左侧来）
-     */
     public void setMenu(Menu newMenu, int direction) {
         menus.set(newMenu, direction);
         startDarkenAnim(newMenu != null ? newMenu.getScreenDarken() : 0);
@@ -165,13 +154,6 @@ public class Game extends ApplicationAdapter {
 
     /**
      * 从标题菜单开始游戏。
-     *
-     * <p>跟直接 {@code setMenu(null)} 的区别：
-     *
-     * <ul>
-     *   <li>重置世界后**硬切**菜单，不走滑动动画（滑出标题再露出游戏会拖延时间）
-     *   <li>触发开场动画：黑幕渐亮 + 镜头从偏移位置滑到玩家
-     * </ul>
      */
     public void startGame() {
         resetGame();
@@ -181,6 +163,36 @@ public class Game extends ApplicationAdapter {
         currentDarken = 0f;
         darkenAnimTick = DARKEN_ANIM_TICKS;
         introTicks = 0;
+    }
+
+    // ============================================================ 新增：存档
+
+    public Level[] getLevels()      { return levels; }
+    public int getCurrentLevel()    { return currentLevel; }
+    public int getWonTimer()        { return wonTimer; }
+    public void setWonTimer(int t)  { wonTimer = t; }
+
+    public void setLevels(Level[] levels, int currentLevel) {
+        this.levels = levels;
+        this.currentLevel = currentLevel;
+        this.level = levels[currentLevel];
+    }
+
+    /**
+     * 从存档开始游戏。
+     *
+     * @return 成功载入返回 true；无存档或载入失败返回 false
+     */
+    public boolean loadGame() {
+        if (!SaveManager.exists()) return false;
+        if (!SaveManager.load(this)) return false;
+        menus.setImmediate(null);
+        fromDarken = 0f;
+        toDarken = 0f;
+        currentDarken = 0f;
+        darkenAnimTick = DARKEN_ANIM_TICKS;
+        introTicks = 0;
+        return true;
     }
 
     // ---------------------------------------------------------------- 通用
@@ -206,6 +218,7 @@ public class Game extends ApplicationAdapter {
         player.x = (player.x >> 4) * 16 + 8;
         player.y = (player.y >> 4) * 16 + 8;
         level.add(player);
+        SaveManager.save(this);   // === 换层即存 ===
     }
 
     public void resetGame() {
@@ -243,7 +256,6 @@ public class Game extends ApplicationAdapter {
         input = new InputHandler();
         Gdx.input.setInputProcessor(input);
 
-        // 显式捕获 Android 返回键，阻止它触发 Activity 的默认退出行为。
         Gdx.input.setCatchKey(Input.Keys.BACK, true);
 
         pixmap = new Pixmap(WIDTH, HEIGHT, Pixmap.Format.RGBA8888);
@@ -356,11 +368,9 @@ public class Game extends ApplicationAdapter {
 
         if (shakeTicks > 0) shakeTicks--;
 
-        // 暗化过渡独立推进，不受菜单状态影响。
         if (darkenAnimTick < DARKEN_ANIM_TICKS) {
             darkenAnimTick++;
             float t = darkenAnimTick / (float) DARKEN_ANIM_TICKS;
-            // easeInOutQuad：两端慢、中间快，是"过渡"的手感。
             float eased = (t < 0.5f)
                     ? 2f * t * t
                     : 1f - 2f * (1f - t) * (1f - t);
@@ -374,7 +384,6 @@ public class Game extends ApplicationAdapter {
 
         input.tick();
 
-        // 游戏中按 ESC / Android 返回键 → 弹出暂停菜单
         if (menu == null && !menus.isAnimating() && introTicks < 0) {
             if (input.pause.clicked) {
                 setMenu(new PauseMenu(), +1);
@@ -422,18 +431,6 @@ public class Game extends ApplicationAdapter {
         menu.tick();
     }
 
-    /**
-     * 根据当前游戏状态决定播哪首 BGM。每 tick 调一次。
-     *
-     * <p>规则：
-     *
-     * <ul>
-     *   <li>标题菜单 → title
-     *   <li>游戏中地表（level 0）→ surface
-     *   <li>游戏中洞穴（level &lt; 0）→ cave
-     *   <li>游戏中天空（level 1）→ sky
-     * </ul>
-     */
     private void updateMusic() {
         if (menu instanceof TitleMenu) {
             MusicManager.get().play("title");
@@ -442,7 +439,6 @@ public class Game extends ApplicationAdapter {
 
         if (menu == null) {
             if (introTicks >= 0) {
-                // 开场动画期间保持当前（通常是从标题来的 title 还在淡出）
                 return;
             }
             if (currentLevel < 0) {
@@ -508,9 +504,6 @@ public class Game extends ApplicationAdapter {
             renderIntroMask();
         }
 
-        // 压暗游戏画面。currentDarken 是浮点，round 成整数档位。
-        // 必须在 menus.render 之前 —— 这样菜单不受影响。
-        // 用软件混合（查表替换索引），菜单颜色仍然是原色。
         int darkenLevel = Math.round(currentDarken);
         if (darkenLevel > 0) {
             screen.darken(palette, darkenLevel);
@@ -575,11 +568,6 @@ public class Game extends ApplicationAdapter {
         batch.end();
     }
 
-    /**
-     * HUD 一行平铺、全透明、顶置。
-     *
-     * <p>注意：HUD 在压暗之前绘制，所以暂停时 HUD 也会变暗。 想让 HUD 保持高亮的话，把 renderGui() 挪到 screen.darken 之后。
-     */
     private void renderGui() {
         for (int i = 0; i < 10; i++) {
             if (i < player.health)
@@ -606,11 +594,6 @@ public class Game extends ApplicationAdapter {
         }
     }
 
-    /**
-     * 开场黑幕。用有序抖动让黑块逐块消失，看起来像像素在点亮。
-     *
-     * <p>直接写 pixels 数组，不走 {@code screen.render} —— tile 0 在图集里 是空的。palette index 0 是近黑 0x0A0A0A。
-     */
     private void renderIntroMask() {
         float p = introTicks / (float) (INTRO_DURATION - 1);
         int threshold = Math.round(p * 16f);
