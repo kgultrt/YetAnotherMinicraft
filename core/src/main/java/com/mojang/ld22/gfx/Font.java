@@ -14,13 +14,17 @@ public class Font {
 			if (mask != null) {
 				screen.renderGlyphMask(mask, PixelFont.GLYPH_SIZE, PixelFont.GLYPH_SIZE, cx, y, fg);
 			}
-			cx += PixelFont.GLYPH_SIZE;
+			cx += PixelFont.advance(c); // 变宽推进
 		}
 	}
 
 	public static int measure(String msg) {
 		if (msg == null || msg.isEmpty()) return 0;
-		return msg.length() * PixelFont.GLYPH_SIZE;
+		int w = 0;
+		for (int i = 0; i < msg.length(); i++) {
+			w += PixelFont.advance(msg.charAt(i));
+		}
+		return w;
 	}
 
 	public static void renderFrame(Screen screen, String title, int x0, int y0, int x1, int y1) {
