@@ -29,6 +29,12 @@ public class PauseMenu extends Menu {
     /** "Saved!" 提示显示的时长（tick）。90 tick = 1.5 秒。 */
     private static final int SAVED_MESSAGE_DURATION = 90;
 
+    /** 框内容与左右边框之间的最小水平内边距（像素）。 */
+    private static final int SIDE_PAD = 8;
+
+    /** 箭头与文字块之间的间距（像素）。 */
+    private static final int ARROW_GAP = 4;
+
     private final MenuList<String> list = new MenuList<>(Arrays.asList(OPTION_KEYS), 8);
 
     /** 保存成功后的提示倒计时。0 = 不显示。 */
@@ -81,38 +87,41 @@ public class PauseMenu extends Menu {
         int cols = screen.w / 8;
         int rows = screen.h / 8;
 
-        int boxW = 17;   // 加宽了，容纳最长选项 "Save & Quit"
-        int boxH = 8;
+        // ---------- 1. 量出最长选项的像素宽度 ----------
+        int maxTextW = 0;
+        for (String k : OPTION_KEYS) {
+            maxTextW = Math.max(maxTextW, Font.measure(Messages.get(this, k)));
+        }
+
+        int arrowW = Font.measure(">");
+
+        // ---------- 2. 框的尺寸由内容反推 ----------
+        // 宽：左右边距 + 箭头 + 间隔 + 文字 + 间隔 + 箭头 + 右边距
+        int needPx = SIDE_PAD + arrowW + ARROW_GAP + maxTextW + ARROW_GAP + arrowW + SIDE_PAD;
+        // 向上取整到格，再加 2 格给左右边框本身。
+        int boxW = Math.max(11, (needPx + 7) / 8 + 2);
+        // 高：上边框 1 + 标题 1 + 空行 1 + 选项 N + 下边框 1
+        int boxH = 3 + OPTION_KEYS.length + 1;
+
         int xo = (cols - boxW) / 2;
         int yo = (rows - boxH) / 2;
         int x1 = xo + boxW;
         int y1 = yo + boxH;
 
-        Font.renderFrame(
-                screen,
-                Messages.get(this, "title"),
-                xo,
-                yo,
-                x1,
-                y1
-        );
+        Font.renderFrame(screen, Messages.get(this, "title"), xo, yo, x1, y1);
 
-        int optStartY = ((yo + y1) / 2 + 1) * 8;
+        // ---------- 3. 选项从标题下一行开始 ----------
+        int optStartY = (yo + 3) * 8;
 
         int highlightIdx = list.highlightIndex();
 
-        int boxInnerW = 0;
-
-        for (String k : OPTION_KEYS) {
-            String msg = Messages.get(this, k);
-            boxInnerW = Math.max(boxInnerW, Font.measure(msg));
-        }
-
-        int boxInnerX = (screen.w - boxInnerW) / 2;
+        // ---------- 4. 文字块按"框"水平居中（不再按屏幕） ----------
+        // 框在像素坐标下的中心 x。注意 x1 是右边界格，+1 才是像素右沿。
+        int frameCenterX = (xo + x1 + 1) * 8 / 2;
+        int textBlockX = frameCenterX - maxTextW / 2;
 
         for (int i = 0; i < OPTION_KEYS.length; i++) {
             String msg = Messages.get(this, OPTION_KEYS[i]);
-
             int y = optStartY + i * 8;
 
             int col = (i == highlightIdx)
@@ -120,24 +129,22 @@ public class PauseMenu extends Menu {
                     : Color.get(0, 333, 333, 333);
 
             int textW = Font.measure(msg);
-            int x = boxInnerX + (boxInnerW - textW) / 2;
-
+            int x = textBlockX + (maxTextW - textW) / 2;
             Font.draw(msg, screen, x, y, col);
         }
 
+        // ---------- 5. 左右箭头 ----------
         int arrowY = optStartY + Math.round(list.arrowY());
-        int arrowGap = 4;
-        int arrowWidth = Font.measure(">");
 
-        int leftArrowX = boxInnerX - arrowGap - arrowWidth;
-        int rightArrowX = boxInnerX + boxInnerW + arrowGap;
+        int leftArrowX = textBlockX - ARROW_GAP - arrowW;
+        int rightArrowX = textBlockX + maxTextW + ARROW_GAP;
 
         int arrowColor = Color.get(0, 555, 555, 555);
 
         Font.draw(">", screen, leftArrowX, arrowY, arrowColor);
         Font.draw("<", screen, rightArrowX, arrowY, arrowColor);
 
-        // 保存成功提示
+        // ---------- 6. 保存成功提示 ----------
         if (savedMessageTicks > 0) {
             String msg = Messages.get(this, "saved");
             int mw = Font.measure(msg);

@@ -15,85 +15,92 @@ import com.mojang.ld22.level.tile.Tile;
 import com.mojang.ld22.save.FurnitureCodec;
 
 public class FurnitureItem extends Item {
-	public Furniture furniture;
-	public boolean placed = false;
+    public Furniture furniture;
+    public boolean placed = false;
 
-	public FurnitureItem(Furniture furniture) {
-		this.furniture = furniture;
-	}
+    public FurnitureItem(Furniture furniture) {
+        this.furniture = furniture;
+    }
 
-	public int getColor() {
-		return furniture.col;
-	}
+    public int getColor() {
+        return furniture.col;
+    }
 
-	public int getSprite() {
-		return furniture.sprite + 10 * 32;
-	}
+    public int getSprite() {
+        return furniture.sprite + 10 * 32;
+    }
 
-	public void renderIcon(Screen screen, int x, int y) {
-		screen.render(x, y, getSprite(), getColor(), 0);
-	}
+    public void renderIcon(Screen screen, int x, int y) {
+        screen.render(x, y, getSprite(), getColor(), 0);
+    }
 
-	public void renderInventory(Screen screen, int x, int y) {
-		screen.render(x, y, getSprite(), getColor(), 0);
-		Font.draw(furniture.getName(), screen, x + 8, y, Color.get(-1, 555, 555, 555));
-	}
+    public void renderInventory(Screen screen, int x, int y) {
+        screen.render(x, y, getSprite(), getColor(), 0);
+        Font.draw(furniture.getName(), screen, x + 8, y, Color.get(-1, 555, 555, 555));
+    }
 
-	public void onTake(ItemEntity itemEntity) {
-	}
+    public void onTake(ItemEntity itemEntity) {}
 
-	public boolean canAttack() {
-		return false;
-	}
+    public boolean canAttack() {
+        return false;
+    }
 
-	public boolean interactOn(Tile tile, Level level, int xt, int yt, Player player, int attackDir) {
-		if (tile.mayPass(level, xt, yt, furniture)) {
-			furniture.x = xt * 16 + 8;
-			furniture.y = yt * 16 + 8;
-			level.add(furniture);
-			placed = true;
-			return true;
-		}
-		return false;
-	}
+    public boolean interactOn(Tile tile, Level level, int xt, int yt, Player player, int attackDir) {
+        if (tile.mayPass(level, xt, yt, furniture)) {
+            furniture.x = xt * 16 + 8;
+            furniture.y = yt * 16 + 8;
+            level.add(furniture);
+            placed = true;
+            return true;
+        }
+        return false;
+    }
 
-	public boolean isDepleted() {
-		return placed;
-	}
+    public boolean isDepleted() {
+        return placed;
+    }
 
-	public String getName() {
-		return furniture.getName();
-	}
+    public String getName() {
+        return furniture.getName();
+    }
 
-	// ============================================================ 存档
+    @Override
+    public boolean matches(Item item) {
+        if (!(item instanceof FurnitureItem)) return false;
+        Furniture other = ((FurnitureItem) item).furniture;
+        return other != null && this.furniture != null
+                && other.name.equals(this.furniture.name);
+    }
 
-	@Override
-	public void write(DataOutputStream out) throws IOException {
-		super.write(out);
+    // ============================================================ 存档
 
-		// furniture 理论上不会为 null，但加个 flag 更稳（防止存档损坏导致 NPE）
-		if (furniture != null) {
-			out.writeBoolean(true);
-			out.writeUTF(FurnitureCodec.nameOf(furniture.getClass()));
-			furniture.write(out);
-		} else {
-			out.writeBoolean(false);
-		}
+    @Override
+    public void write(DataOutputStream out) throws IOException {
+        super.write(out);
 
-		out.writeBoolean(placed);
-	}
+        // furniture 理论上不会为 null，但加个 flag 更稳（防止存档损坏导致 NPE）
+        if (furniture != null) {
+            out.writeBoolean(true);
+            out.writeUTF(FurnitureCodec.nameOf(furniture.getClass()));
+            furniture.write(out);
+        } else {
+            out.writeBoolean(false);
+        }
 
-	@Override
-	public void read(DataInputStream in) throws IOException {
-		super.read(in);
+        out.writeBoolean(placed);
+    }
 
-		if (in.readBoolean()) {
-			String id = in.readUTF();
-			furniture = FurnitureCodec.create(id, in);
-		} else {
-			furniture = null;
-		}
+    @Override
+    public void read(DataInputStream in) throws IOException {
+        super.read(in);
 
-		placed = in.readBoolean();
-	}
+        if (in.readBoolean()) {
+            String id = in.readUTF();
+            furniture = FurnitureCodec.create(id, in);
+        } else {
+            furniture = null;
+        }
+
+        placed = in.readBoolean();
+    }
 }

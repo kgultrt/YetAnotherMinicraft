@@ -29,25 +29,28 @@ if (JavaVersion.current().isJava9Compatible()) {
 }
 
 dependencies {
-  implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
-  implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
-  implementation project(':core')
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
 
-  if(enableGraalNative == 'true') {
-    implementation "io.github.berstanio:gdx-svmhelper-backend-lwjgl3:$graalHelperVersion"
+    implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
 
-  }
-  // Forces LWJGL3 to use at least $lwjgl3Version, currently 3.4.1, to avoid warnings on Java 25 and up.
-  constraints{
-    implementation("org.lwjgl:lwjgl:$lwjgl3Version")
-    implementation("org.lwjgl:lwjgl-glfw:$lwjgl3Version")
-    implementation("org.lwjgl:lwjgl-jemalloc:$lwjgl3Version")
-    implementation("org.lwjgl:lwjgl-openal:$lwjgl3Version")
-    implementation("org.lwjgl:lwjgl-opengl:$lwjgl3Version")
-    implementation("org.lwjgl:lwjgl-stb:$lwjgl3Version")
-  }
+    implementation project(':core')
+
+    if (enableGraalNative == 'true') {
+        implementation "io.github.berstanio:gdx-svmhelper-backend-lwjgl3:$graalHelperVersion"
+        implementation "io.github.berstanio:gdx-svmhelper-extension-freetype:$graalHelperVersion"
+    }
+
+    constraints {
+        implementation("org.lwjgl:lwjgl:$lwjgl3Version")
+        implementation("org.lwjgl:lwjgl-glfw:$lwjgl3Version")
+        implementation("org.lwjgl:lwjgl-jemalloc:$lwjgl3Version")
+        implementation("org.lwjgl:lwjgl-openal:$lwjgl3Version")
+        implementation("org.lwjgl:lwjgl-opengl:$lwjgl3Version")
+        implementation("org.lwjgl:lwjgl-stb:$lwjgl3Version")
+    }
 }
-
 def os = System.properties['os.name'].toLowerCase(Locale.ROOT)
 
 run {

@@ -19,10 +19,10 @@ public class TitleMenu extends Menu {
 
     private final MenuBackground bg = MenuBackground.get();
 
-    // === 新增 "option.continue" ===
     private static final String[] OPTION_KEYS = {
             "option.start", "option.continue", "option.howto",
-            "option.about", "option.language", "option.quit"
+            "option.about", "option.language", "option.settings",
+            "option.quit"
     };
 
     /** 选项列表。行高 8px。 */
@@ -59,6 +59,9 @@ public class TitleMenu extends Menu {
                     game.setMenu(new LanguageMenu(this), +1);
                     break;
                 case 5:
+                    game.setMenu(new SettingsMenu(this), +1);
+                    break;
+                case 6:
                     Gdx.app.exit();
                     break;
             }

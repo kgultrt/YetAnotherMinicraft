@@ -47,7 +47,7 @@ public class Game extends ApplicationAdapter {
 
     private static final int SHAKE_TICKS = 18;
 
-    public static final String PIXEL_FONT_PATH = "quan.ttf";
+    public static final String PIXEL_FONT_PATH = "font/quan.ttf";
 
     /** 开场动画时长（tick）。30 tick = 0.5 秒。 */
     private static final int INTRO_DURATION = 30;
@@ -322,7 +322,7 @@ public class Game extends ApplicationAdapter {
     private void init() {
         palette.build();
 
-        Pixmap sheetPixmap = new Pixmap(Gdx.files.internal("icons.png"));
+        Pixmap sheetPixmap = new Pixmap(Gdx.files.internal("texture/icons.png"));
         SpriteSheet sheet = new SpriteSheet(sheetPixmap);
         sheetPixmap.dispose();
 

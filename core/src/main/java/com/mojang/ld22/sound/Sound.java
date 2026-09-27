@@ -3,13 +3,13 @@ package com.mojang.ld22.sound;
 import com.badlogic.gdx.Gdx;
 
 public class Sound {
-	public static final Sound playerHurt = new Sound("playerhurt.wav");
-	public static final Sound playerDeath = new Sound("death.wav");
-	public static final Sound monsterHurt = new Sound("monsterhurt.wav");
-	public static final Sound test = new Sound("test.wav");
-	public static final Sound pickup = new Sound("pickup.wav");
-	public static final Sound bossdeath = new Sound("bossdeath.wav");
-	public static final Sound craft = new Sound("craft.wav");
+	public static final Sound playerHurt = new Sound("sound/playerhurt.wav");
+	public static final Sound playerDeath = new Sound("sound/death.wav");
+	public static final Sound monsterHurt = new Sound("sound/monsterhurt.wav");
+	public static final Sound test = new Sound("sound/test.wav");
+	public static final Sound pickup = new Sound("sound/pickup.wav");
+	public static final Sound bossdeath = new Sound("sound/bossdeath.wav");
+	public static final Sound craft = new Sound("sound/craft.wav");
 
 	private final String path;
 	private com.badlogic.gdx.audio.Sound gdxSound;
